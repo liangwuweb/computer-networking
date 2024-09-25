@@ -3,7 +3,9 @@ HTTP client
 """
 import socket
 import sys
+import ssl
 from urllib.parse import urlparse
+import idna
 
 
 def retrieve_url(url):
@@ -11,15 +13,11 @@ def retrieve_url(url):
     return bytes of the body of the document at url
     """
     try:
-        # Process url
-        # url_list = url.split("/")
-        # host = url_list[2]  # The server's hostname or IP address
-        # path = "/" + "/".join(url_list[3:])
-        # port = 80  # The port used by the server
         parsed_url = urlparse(url)
-        host = parsed_url.hostname
+        #host = parsed_url.hostname
+        host = idna.encode(parsed_url.hostname).decode()
         path = parsed_url.path if parsed_url.path else "/"
-        port = parsed_url.port if parsed_url.port else 80
+        port = parsed_url.port if parsed_url.port else (443 if parsed_url.scheme == 'https' else 80)
         timeout = 10  # Set the timeout duration in seconds
 
         # Construct header
@@ -32,6 +30,11 @@ def retrieve_url(url):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             try:
+                # Handle https
+                if parsed_url.scheme == 'https':
+                    context = ssl.create_default_context()
+                    s = context.wrap_socket(s, server_hostname=host)
+
                 s.connect((host, port))
                 print(f"Connected to {host}:{port}")
             except socket.timeout as e:
@@ -39,6 +42,9 @@ def retrieve_url(url):
                 return None
             except socket.gaierror as e:
                 print(f"Error: DNS failed for {host}:{port} - {e}")
+                return None
+            except ssl.SSLError as e:
+                print(f"Error: SSL error - {e}")
                 return None
 
             # Send an HTTP GET request
@@ -56,7 +62,6 @@ def retrieve_url(url):
                     return None
             header, body = res.split(b"\r\n\r\n", 1)
             if b'Transfer-Encoding: chunked' in header:  # handle chunked data
-                print('yes')
                 decoded_body = b''
                 while True:
                     index = body.find(b'\r\n')
@@ -65,11 +70,9 @@ def retrieve_url(url):
                     length = int(body[:index].decode(), 16)
                     if length == 0:
                         break
-
                     start = index + 2
                     end = start + length
                     decoded_body += body[start:end]
-
                     body = body[end+2:]
                 return decoded_body
             if b'200 OK' in header:  # only return body when 200 OK
@@ -79,10 +82,9 @@ def retrieve_url(url):
     except socket.timeout:
         print("Error: Timeout while receiving data")
         return None
-    # except (socket.error, Exception) as e:
-    #     # Handle socket errors
-    #     print(f"Error: {e}")
-    #     return None
+    except ssl.SSLError as e:
+        print(f"Error: SSL error - {e}")
+        return None
 
 
 if __name__ == "__main__":
