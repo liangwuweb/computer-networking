@@ -3,8 +3,8 @@ import sys
 
 def Main():
     if len(sys.argv) != 3:
-      print("Usage: python war-client.py <host> <port>")
-      sys.exit(1)
+        print("Usage: python war-client.py <host> <port>")
+        sys.exit(1)
 
     host = sys.argv[1]
     port = int(sys.argv[2])
@@ -20,24 +20,16 @@ def Main():
     s.send(want_game_msg)
     print("Sent 'want game' message to server")
 
-    #round_num = 1
-    
-    # while True:
-    #     # Send message to the server
-    #     s.send(message.encode('ascii'))
+    # Receive the "game start" message from the server
+    game_start_packet = s.recv(1024)
 
-    #     # Receive message from the server
-    #     data = s.recv(1024)
-
-    #     # Print the received message (would be reversed message from server)
-    #     print('Received from the server:', str(data.decode('ascii')))
-        
-    #     # Increment the round number
-    #     round_num += 1
-
-    #     # Break the loop after 26 rounds
-    #     if round_num == 26:
-    #         break
+    # The first byte is the command, and the rest is the card payload
+    command = game_start_packet[0]
+    if command == 1:  # Check if this is the "game start" command
+        cards = list(game_start_packet[1:])  # Extract the card payload
+        print("Received 'game start' message with cards:", cards)
+    else:
+        print("Unexpected command received from server")
 
     # Close the connection
     s.close()

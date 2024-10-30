@@ -1,75 +1,100 @@
-# import socket programming library
 import socket
 import sys
+import random
+from threading import Barrier, Thread
 
-# import thread module
-from _thread import *
-import threading
+# Initialize a Barrier for 2 clients
+barrier = Barrier(2)
 
-print_lock = threading.Lock()
+# Thread function to handle game setup and communication for each client
+def threaded(client, cards):
+    # Wait until both clients have reached this point
+    barrier.wait()
 
-def threaded(client):
-    print("Thread started for a client")  # Confirm that the thread is running
-    
-    # Receive "want game" message from the client
-    want_game = client.recv(2)
-    if want_game == bytes([0, 0]):
-        print("Received valid 'want game' message from client")
-        # Proceed with game setup or other communication here
-        print("Client verified successfully, ready for game setup")
-    else:
-        print("Invalid message received, disconnecting client")
+    # Send "game start" command with cards
+    try:
+        game_start_command = bytes([1])  # Assuming "1" is the game start command
+        payload = bytes(cards)           # Convert the list of cards to bytes
+        client.send(game_start_command + payload)
+        print(f"Sent 'game start' message with cards: {cards}")
+    except Exception as e:
+        print(f"Error sending data to client: {e}")
         client.close()
-        return  # Exit the function if verification fails
+        return
 
-    #Keep the client connection open if additional interaction is needed
+    # Keep the client connection open if additional interaction is needed
     while True:
-        data = client.recv(1024)  # Expect more messages from client
-        if not data:
-            print("Client disconnected.")
+        try:
+            data = client.recv(1024)  # Expect more messages from client
+            if not data:
+                print("Client disconnected.")
+                break
+            print(f"Received message from client: {data.decode()}")
+        except Exception as e:
+            print(f"Error receiving data from client: {e}")
             break
-        print(f"Received message from client: {data.decode()}")
-
 
     # Connection closed
     client.close()
 
-
-
-
 def Main():
-	# Check if a port number is provided as an argument
-  if len(sys.argv) != 2:
-    print("Usage: python war-server.py <port>")
-    sys.exit(1)
+    if len(sys.argv) != 2:
+        print("Usage: python war-server.py <port>")
+        sys.exit(1)
 
-	# reserve a port on your computer
-	# in our case it is 12345 but it
-	# can be anything
-  # Use the port provided by the user
-  port = int(sys.argv[1])
-  host = "127.0.0.1"
-  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-  s.bind((host, port))
-  print("socket binded to port", port)
+    # Use the port provided by the user
+    port = int(sys.argv[1])
+    host = "127.0.0.1"
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((host, port))
+    print("Socket bound to port", port)
 
-	# put the socket into listening mode
-  s.listen(2)
-  print("Socket is listening for two connections")
+    # Put the socket into listening mode
+    s.listen(2)
+    print("Socket is listening for two connections")
 
-  clients = []
-  
-	# a forever loop until client wants to exit
-  while len(clients) < 2:
+    clients = []
+    threads = []
 
-		# establish connection with client
-    client, addr = s.accept()
-    print('Connected to :', addr[0], ':', addr[1])
+    # Accept connections until two clients connect and send the "want game" message
+    while len(clients) < 2:
+        client, addr = s.accept()
+        print('Connected to:', addr[0], ':', addr[1])
 
-    start_new_thread(threaded, (client,))
-    clients.append(client)
-		
- 
+        # Receive and verify the "want game" message
+        want_game = client.recv(2)
+        if want_game == bytes([0, 0]):
+            print("Received valid 'want game' message from client")
+            clients.append(client)
+        else:
+            print("Invalid message received, disconnecting client")
+            client.close()
+
+    # Shuffle and deal cards once both clients have connected and been verified
+    deck = list(range(52))            # Standard deck of 52 cards
+    random.shuffle(deck)               # Shuffle the deck
+    player1_cards = deck[:26]          # First 26 cards for player 1
+    player2_cards = deck[26:]          # Last 26 cards for player 2
+
+    # # Start a new thread for each client and send their cards after reaching the barrier
+    # for i, client in enumerate(clients):
+    #     thread = Thread(target=threaded, args=(client, player1_cards if i == 0 else player2_cards))
+    #     thread.start()
+    #     threads.append(thread)
+
+    # # Join threads to keep the server running until both clients are finished
+    # for thread in threads:
+    #     thread.join()
+    # Start a new thread for each client and explicitly assign their cards
+    thread1 = Thread(target=threaded, args=(clients[0], player1_cards))
+    thread2 = Thread(target=threaded, args=(clients[1], player2_cards))
+
+    thread1.start()
+    thread2.start()
+
+    # Join threads to keep the server running until both clients are finished
+    thread1.join()
+    thread2.join()
 
 if __name__ == '__main__':
-	Main()
+    Main()
