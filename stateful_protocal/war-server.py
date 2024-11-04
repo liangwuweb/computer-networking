@@ -25,11 +25,11 @@ def threaded(client, cards):
     # Keep the client connection open if additional interaction is needed
     while True:
         try:
-            data = client.recv(1024)  # Expect more messages from client
+            data = client.recv(2)  # Expect more messages from client
             if not data:
                 print("Client disconnected.")
                 break
-            print(f"Received message from client: {data.decode()}")
+            print(f"Received message from client: {data[0]} {data[1]}")
         except Exception as e:
             print(f"Error receiving data from client: {e}")
             break
