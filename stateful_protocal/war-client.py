@@ -31,7 +31,7 @@ def Main():
     else:
         print("Unexpected command received from server")
     
-    for card in cards:
+    for _ in range(26):
         # Calculate and print the current round number
         current_round = 26 - len(cards) + 1
         print(f"Round {current_round}")
@@ -44,7 +44,7 @@ def Main():
         print(f"Sent card {card} to the server")
 
         # Receive the round result from the server
-        round_result = s.recv(1024)
+        round_result = s.recv(2)
         result_command = round_result[0]
         result = round_result[1]
 
