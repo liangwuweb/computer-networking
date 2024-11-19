@@ -1,11 +1,7 @@
 import socket
 import sys
 
-
-def main():
-    """
-    Main function for client
-    """
+def Main():
     if len(sys.argv) != 3:
         print("Usage: python war-client.py <host> <port>")
         sys.exit(1)
@@ -34,7 +30,7 @@ def main():
         print("Received 'game start' message with cards:", cards)
     else:
         print("Unexpected command received from server")
-
+    
     for _ in range(26):
         # Calculate and print the current round number
         current_round = 26 - len(cards) + 1
@@ -43,7 +39,7 @@ def main():
         # Get the current card and remove it from the list
         card = cards.pop(0)
 
-        play_card = bytes([2, card])
+        play_card = bytes([2, 52])
         s.send(play_card)
         print(f"Sent card {card} to the server")
 
@@ -65,6 +61,5 @@ def main():
     # Close the connection
     s.close()
 
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    Main()
