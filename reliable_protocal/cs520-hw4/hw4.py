@@ -1,6 +1,8 @@
 """
-Where solution code to hw4 should be written.  No other files should
-be modified.
+version 1.0 
+use pipeling design and only retransmit unACKed packet
+use a fix timer
+mean time of 50% loss and 1% delay: 8.3 s
 """
 
 import socket
@@ -27,7 +29,9 @@ def send(sock: socket.socket, data: bytes):
     base = 0  # base number
     next_seq_num = 0  # Next sequence number to send
     timeout = 0.5  # Timeout for retransmissions
-    acked = set()  # Track acknowledged packets
+
+    # Maintain a dictionary for unacknowledged packets in the window
+    unacked_packets = {}
 
     while base < len(chunks):
         # keep sending packets in the window
@@ -35,6 +39,8 @@ def send(sock: socket.socket, data: bytes):
             packet = struct.pack("!I", next_seq_num) + chunks[next_seq_num]
             sock.send(packet)
             logger.info("Sent packet with sequence number: %s", next_seq_num)
+            # Add the packet to the unacknowledged dictionary
+            unacked_packets[next_seq_num] = packet
             next_seq_num += 1
 
         # Wait for ACKs or timeout
@@ -43,19 +49,21 @@ def send(sock: socket.socket, data: bytes):
             ack_data = sock.recv(4)  # Receive 4 bytes for the ACK
             ack_num = struct.unpack("!I", ack_data)[0]  # Extract the ACK number
 
-            if ack_num not in acked and ack_num >= base:
+            if ack_num >= base and ack_num in unacked_packets:
                 logger.info("Received ACK for packet: %s", ack_num)
-                acked.add(ack_num)
+                del unacked_packets[ack_num]  # Remove the acknowledged packet
 
                 # Move the window's base forward
-                while base in acked:
+                while base not in unacked_packets and base < next_seq_num:
                     base += 1
         except socket.timeout:
             logger.warning("Timeout waiting for ACKs. Retransmitting window.")
-            for i in range(base, min(base + window_size, len(chunks))):
-                packet = struct.pack("!I", i) + chunks[i]
-                sock.send(packet)
-                logger.info("Retransmitted packet with sequence number: %s", i)
+            for seq_num, packet in unacked_packets.items():
+                if base <= seq_num < base + window_size:
+                    sock.send(packet)
+                    logger.info(
+                        "Retransmitted packet with sequence number: %s", seq_num
+                    )
 
     logger.info("All data sent successfully")
 
