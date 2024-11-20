@@ -25,7 +25,7 @@ def send(sock: socket.socket, data: bytes):
     offsets = range(0, len(data), chunk_size)
     chunks = [data[i : i + chunk_size] for i in offsets]
 
-    window_size = 5  # Sliding window size
+    window_size = 2  # Sliding window size
     base = 0  # base number
     next_seq_num = 0  # Next sequence number to send
     timeout = 0.5  # Timeout for retransmissions
