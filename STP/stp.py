@@ -171,7 +171,7 @@ class STPNode:
                 sender_id = int(sender_id)  # Convert sender_id to an integer
 
                 print(
-                    f"Node {self.node_id} received '{hello_message}' from Node {sender_id}"
+                    f"Node {self.node_id} ({self.port}) received '{hello_message}' from Node {sender_id} ({addr[1]})"
                 )
             except ValueError:
                 print(
